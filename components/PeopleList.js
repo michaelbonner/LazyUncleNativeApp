@@ -2,11 +2,12 @@ import React, {useState, useEffect} from 'react';
 import {View, Text, StyleSheet, TextInput} from 'react-native';
 import {Link} from 'react-router-native';
 import AsyncStorage from '@react-native-community/async-storage';
+import {format, parse, isToday, differenceInYears} from 'date-fns';
 
 const PeopleList = () => {
   const [people, setPeople] = useState([]);
   const [filteredPeople, setFilteredPeople] = useState([]);
-  const [search, setSearch] = useState([]);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const fetchPeople = async () => {
@@ -22,18 +23,46 @@ const PeopleList = () => {
       }).then(response => response.json());
 
       if (peopleResponse) {
-        setPeople(peopleResponse);
+        peopleResponse.push({
+          name: 'Today',
+          id: 0,
+          birthday: format(new Date(), 'yyyy-MM-dd'),
+          isToday: true,
+        });
+        setPeople(
+          peopleResponse.map(person => {
+            const personBirthday = parse(
+              person.birthday,
+              'yyyy-MM-dd',
+              new Date(),
+            );
+            return {
+              ...person,
+              birthdayNumbers: format(personBirthday, 'Mdd'),
+              birthdayFormatted: format(personBirthday, 'M/dd'),
+              age: `${differenceInYears(new Date(), personBirthday)}`,
+              isToday: person.isToday || false,
+            };
+          }),
+        );
       }
     };
     fetchPeople();
   }, []);
 
   useEffect(() => {
-    setFilteredPeople(people);
-  }, [people]);
-
-  useEffect(() => {
-    setFilteredPeople(people.filter(person => person.name.includes(search)));
+    const sortedPeople = [...people];
+    sortedPeople.sort((a, b) => {
+      if (+a.birthdayNumbers > +b.birthdayNumbers) {
+        return 1;
+      } else if (+a.birthdayNumbers < +b.birthdayNumbers) {
+        return -1;
+      }
+      return 0;
+    });
+    setFilteredPeople(
+      sortedPeople.filter(person => person.name.includes(search)),
+    );
   }, [people, search]);
 
   return (
@@ -47,14 +76,19 @@ const PeopleList = () => {
           style={styles.textInput}
           placeholder="Search"
           onChangeText={text => setSearch(text)}
-          onBlur={text => setSearch(text)}
           value={search}
+          autoCompleteType="off"
         />
       </View>
       {filteredPeople.map(person => (
-        <View key={person.id} style={styles.person}>
+        <View
+          key={person.id}
+          style={person.isToday ? styles.today : styles.person}>
           <Text style={styles.personName}>{person.name}</Text>
-          <Text>{person.birthday}</Text>
+          {!person.isToday && <Text>{person.birthdayFormatted}</Text>}
+          {!person.isToday && person.age && person.parent && (
+            <Text>Age: {person.age}</Text>
+          )}
           {person.parent && <Text>Parent: {person.parent}</Text>}
         </View>
       ))}
@@ -72,6 +106,11 @@ const styles = StyleSheet.create({
   person: {
     paddingVertical: 12,
     paddingHorizontal: 8,
+  },
+  today: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: '#BEE3F8',
   },
   personName: {
     fontWeight: '600',

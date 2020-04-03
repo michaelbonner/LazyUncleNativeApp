@@ -1,11 +1,16 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {Button, StyleSheet, Text, TextInput, View} from 'react-native';
 import {Formik} from 'formik';
 import {Colors} from 'react-native/Libraries/NewAppScreen';
-import {Link} from 'react-router-native';
+import {Link, Redirect} from 'react-router-native';
 import AsyncStorage from '@react-native-community/async-storage';
 
 const Home = () => {
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  if (loggedIn) {
+    return <Redirect to="/people" />;
+  }
   return (
     <>
       <Text style={styles.welcomeText}>Welcome to Lazy Uncle</Text>
@@ -25,12 +30,7 @@ const Home = () => {
               },
               body: JSON.stringify(values),
             },
-          )
-            .then(response => response.json())
-            .then(json => {
-              console.log('json', json);
-              return json;
-            });
+          ).then(response => response.json());
 
           await AsyncStorage.setItem(
             '@LazyUncle:token',
@@ -44,6 +44,7 @@ const Home = () => {
             '@LazyUncle:token_type',
             loginResponse.token_type,
           );
+          setLoggedIn(true);
         }}>
         {({handleChange, handleBlur, handleSubmit, values, isValid}) => (
           <View style={styles.body}>
